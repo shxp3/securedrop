@@ -1,4 +1,4 @@
-#include "logger.h"
+﻿#include "logger.h"
 #include <stdarg.h>
 
 static void printLine(const char* level, const char* tag, const char* msg) {
@@ -8,7 +8,7 @@ static void printLine(const char* level, const char* tag, const char* msg) {
 void Log::begin() {
     Serial.begin(115200);
     delay(200);
-    Serial.println("\n=== Parcel Guardian AI - Main Controller ===");
+    Serial.println("\n=== SecureDrop - Main Controller ===");
 }
 
 void Log::info(const char* tag, const char* msg)  { printLine("INFO ", tag, msg); }

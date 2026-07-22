@@ -1,4 +1,4 @@
-#include "display.h"
+﻿#include "display.h"
 #include "config.h"
 #include "logger.h"
 #include <Wire.h>
@@ -42,7 +42,7 @@ void Display::update(SystemState state, int uvSecondsRemaining) {
     oled.clearDisplay();
     oled.setTextSize(1);
     oled.setCursor(0, 0);
-    oled.println("Parcel Guardian AI");
+    oled.println("SecureDrop");
     oled.println("--------------------");
     oled.setTextSize(1);
     oled.setCursor(0, 20);

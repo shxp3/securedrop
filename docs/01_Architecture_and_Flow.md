@@ -1,8 +1,8 @@
-# 1. สถาปัตยกรรมระบบ (System Architecture) & System Flow
+﻿# 1. สถาปัตยกรรมระบบ (System Architecture) & System Flow
 
 ## 1.1 แนวคิดการออกแบบ
 
-Parcel Guardian AI ถูกออกแบบเป็น **Distributed Embedded System** (ระบบฝังตัวแบบกระจาย) ไม่ใช่ ESP32 ตัวเดียวทำทุกอย่าง เพราะ:
+SecureDrop ถูกออกแบบเป็น **Distributed Embedded System** (ระบบฝังตัวแบบกระจาย) ไม่ใช่ ESP32 ตัวเดียวทำทุกอย่าง เพราะ:
 
 - **ESP32-CAM มี RAM/Flash จำกัด** และขา GPIO ถูกใช้เกือบหมดโดยกล้อง (OV2640) → ไม่เหลือขาพอสำหรับ sensor/relay/solenoid จำนวนมาก
 - **แยกหน้าที่ (Separation of Concerns)** ทำให้ debug ง่าย, โมดูลไหนพังไม่กระทบทั้งระบบ, และเพิ่มความน่าเชื่อถือ (Reliability) แบบเดียวกับสินค้าอุตสาหกรรมจริง

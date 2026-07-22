@@ -1,6 +1,6 @@
-#pragma once
+﻿#pragma once
 // =====================================================================
-//  Parcel Guardian AI - Main Controller
+//  SecureDrop - Main Controller
 //  config.h : ค่าคงที่ทั้งหมดของระบบ (Pin Map, Timing, Threshold)
 //  ห้ามใส่ความลับ (WiFi/Firebase/Telegram keys) ในไฟล์นี้ -> ดู secrets.h
 // =====================================================================

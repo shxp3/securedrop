@@ -1,5 +1,5 @@
-// =====================================================================
-//  Parcel Guardian AI - Main Controller (ESP32 DevKit V1)
+﻿// =====================================================================
+//  SecureDrop - Main Controller (ESP32 DevKit V1)
 //  main.cpp : จุดเริ่มต้นโปรแกรม ทำหน้าที่เพียง init โมดูลและเรียก
 //             state machine ทุก loop() - business logic ทั้งหมดอยู่ในโมดูลย่อย
 // =====================================================================
@@ -40,7 +40,7 @@ static void connectWiFi() {
 
 void setup() {
     Log::begin();
-    Log::infof("Main", "Parcel Guardian AI v%s booting...", FW_VERSION);
+    Log::infof("Main", "SecureDrop v%s booting...", FW_VERSION);
 
     connectWiFi();
 
