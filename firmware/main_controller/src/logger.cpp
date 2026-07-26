@@ -1,4 +1,4 @@
-﻿#include "logger.h"
+#include "logger.h"
 #include <stdarg.h>
 
 static void printLine(const char* level, const char* tag, const char* msg) {

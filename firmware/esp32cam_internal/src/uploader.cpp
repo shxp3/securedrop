@@ -1,6 +1,6 @@
 #include "uploader.h"
 #include "esp_camera.h"
-#include <Firebase_ESP_Client.h>
+#include <Firebase.h>
 #include "secrets.h"
 
 static FirebaseData fbdo;
@@ -25,9 +25,8 @@ String Uploader::captureAndUpload(const String& tag, const char* photoFieldName)
 
     String remotePath = "/parcel_photos/" + tag + "_internal_" + String(millis()) + ".jpg";
 
-    bool ok = Firebase.Storage.upload(&fbdo, FIREBASE_STORAGE_BUCKET, remotePath.c_str(),
-                                       mem_storage_type_data, fb->buf, fb->len,
-                                       "image/jpeg", nullptr, nullptr);
+    bool ok = Firebase.Storage.upload(&fbdo, FIREBASE_STORAGE_BUCKET, fb->buf, fb->len,
+                                       remotePath.c_str(), "image/jpeg");
 
     esp_camera_fb_return(fb);
 

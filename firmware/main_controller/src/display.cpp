@@ -1,4 +1,4 @@
-﻿#include "display.h"
+#include "display.h"
 #include "config.h"
 #include "logger.h"
 #include <Wire.h>

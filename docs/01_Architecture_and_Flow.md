@@ -1,4 +1,4 @@
-﻿# 1. สถาปัตยกรรมระบบ (System Architecture) & System Flow
+# 1. สถาปัตยกรรมระบบ (System Architecture) & System Flow
 
 ## 1.1 แนวคิดการออกแบบ
 

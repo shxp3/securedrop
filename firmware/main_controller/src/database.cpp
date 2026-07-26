@@ -1,7 +1,7 @@
 #include "database.h"
 #include "config.h"
 #include "logger.h"
-#include <Firebase_ESP_Client.h>
+#include <Firebase.h>
 #include "secrets.h"
 
 static FirebaseData fbdo;

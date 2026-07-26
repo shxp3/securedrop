@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 // =====================================================================
 //  SecureDrop - Main Controller
 //  config.h : ค่าคงที่ทั้งหมดของระบบ (Pin Map, Timing, Threshold)
