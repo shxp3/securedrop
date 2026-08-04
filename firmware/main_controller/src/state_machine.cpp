@@ -70,16 +70,25 @@ void StateMachine::onReady() {
     while (barcodeReader.hasCode()) {
         (void)barcodeReader.takeCode();
     }
+    barcodeReader.disarm();
     image_.release();
     currentTracking_ = "";
     enter(SystemState::WAIT_BARCODE);
 }
 
 void StateMachine::onWaitBarcode() {
+    // Keep a scan window open; trigger modes re-arm after timeout/cooldown.
+    if (barcodeReader.state() == BarcodeState::Idle ||
+        barcodeReader.state() == BarcodeState::Timeout ||
+        barcodeReader.state() == BarcodeState::Error) {
+        barcodeReader.arm();
+    }
+
     if (!barcodeReader.hasCode()) {
         return;
     }
     currentTracking_ = barcodeReader.takeCode();
+    barcodeReader.disarm();
     enter(SystemState::VERIFY);
 }
 
@@ -97,8 +106,8 @@ void StateMachine::onVerify() {
 }
 
 void StateMachine::onValid() {
-    // Consume the code immediately so a double-scan during unlock cannot reuse it
-    localDatabase.markUsed(currentTracking_);
+    // Do not mark used yet — wait until unlock sequence completes (onLock).
+    // In-progress tracking is held in currentTracking_; READY drains extras.
     enter(SystemState::UNLOCK);
 }
 
@@ -140,6 +149,10 @@ void StateMachine::onSendTelegram() {
 
 void StateMachine::onLock() {
     lockController.lock();
+    // Mark used only after unlock → capture → notify completed (box was opened).
+    if (currentTracking_.length() > 0) {
+        localDatabase.markUsed(currentTracking_);
+    }
     enter(SystemState::READY);
 }
 
@@ -159,6 +172,7 @@ void StateMachine::onError() {
         "Status: " + reason + " — lock NOT opened";
 
     telegramNotifier.sendText(msg);
-    lockController.lock();  // ensure locked
+    lockController.lock();  // ensure locked — never unlock on barcode error
+    // Do not mark used on invalid / already-used paths.
     enter(SystemState::READY);
 }
