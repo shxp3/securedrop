@@ -1,52 +1,63 @@
 #include "barcode.h"
 #include "config.h"
-#include "logger.h"
+#include "pins.h"
 
-static HardwareSerial barcodeSerial(2); // UART2
-static String buffer;
-static String pendingTracking;
-static bool newScanFlag = false;
+HardwareSerial BarcodeSerial(2);
 
-void Barcode::begin() {
-    barcodeSerial.begin(BARCODE_BAUD, SERIAL_8N1, BARCODE_RX_PIN, BARCODE_TX_PIN);
-    buffer.reserve(BARCODE_MAX_LEN + 4);
-    Log::info("Barcode", "GM65/GM66 UART initialized");
+BarcodeReader barcodeReader;
+
+void BarcodeReader::begin() {
+    buffer_.reserve(BARCODE_MAX_LEN);
+    BarcodeSerial.begin(BARCODE_BAUD, SERIAL_8N1, PIN_BARCODE_RX, PIN_BARCODE_TX);
+    Serial.printf("[Barcode] UART2 RX=GPIO%d baud=%d (RX-only)\n",
+                  PIN_BARCODE_RX, BARCODE_BAUD);
 }
 
-bool Barcode::isValidFormat(const String& code) {
-    if (code.length() < 4 || code.length() > BARCODE_MAX_LEN) return false;
-    for (size_t i = 0; i < code.length(); i++) {
-        char c = code[i];
-        if (!isalnum(c)) return false;
+void BarcodeReader::handleLine(const String& line) {
+    String code = line;
+    code.trim();
+    if (code.length() == 0) {
+        return;
     }
-    return true;
+    // Ignore noisy fragments that are clearly not tracking IDs
+    if (code.length() < 4 || code.length() > BARCODE_MAX_LEN) {
+        Serial.printf("[Barcode] Ignored (len=%u): %s\n",
+                      static_cast<unsigned>(code.length()), code.c_str());
+        return;
+    }
+    pending_ = code;
+    hasPending_ = true;
+    Serial.printf("[Barcode] Scanned: %s\n", pending_.c_str());
 }
 
-void Barcode::poll() {
-    while (barcodeSerial.available()) {
-        char c = barcodeSerial.read();
-        if (c == '\r' || c == '\n') {
-            if (buffer.length() > 0) {
-                String code = buffer;
-                code.trim();
-                buffer = "";
-                if (isValidFormat(code)) {
-                    pendingTracking = code;
-                    newScanFlag = true;
-                    Log::infof("Barcode", "Valid scan: %s", code.c_str());
-                } else {
-                    Log::warnf("Barcode", "Invalid format ignored: %s", code.c_str());
-                }
-            }
+void BarcodeReader::poll() {
+    while (BarcodeSerial.available() > 0) {
+        const char c = static_cast<char>(BarcodeSerial.read());
+        if (c == '\r') {
+            continue;
+        }
+        if (c == '\n') {
+            handleLine(buffer_);
+            buffer_ = "";
+            continue;
+        }
+        if (buffer_.length() < BARCODE_MAX_LEN) {
+            buffer_ += c;
         } else {
-            if (buffer.length() < BARCODE_MAX_LEN) buffer += c;
+            // Overflow protection: reset line
+            buffer_ = "";
+            Serial.println("[Barcode] Line overflow, buffer reset");
         }
     }
 }
 
-bool Barcode::hasNewScan() { return newScanFlag; }
+bool BarcodeReader::hasCode() const {
+    return hasPending_;
+}
 
-String Barcode::readTracking() {
-    newScanFlag = false;
-    return pendingTracking;
+String BarcodeReader::takeCode() {
+    hasPending_ = false;
+    String out = pending_;
+    pending_ = "";
+    return out;
 }

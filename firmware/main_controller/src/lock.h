@@ -1,11 +1,18 @@
 #pragma once
-// lock.h : ควบคุม Solenoid Lock + อ่าน Magnetic Door Sensor
+// 12V Fail-Secure solenoid via 1-channel relay.
+
 #include <Arduino.h>
 
-namespace Lock {
-    void begin();
-    void unlock();
+class LockController {
+public:
+    void begin();          // defaults to LOCKED (fail-secure)
     void lock();
-    bool isDoorOpen();
-    bool justClosedDoor();   // edge-detect: true เพียงครั้งเดียวตอนประตูเปลี่ยนจากเปิด->ปิด
-}
+    void unlock();
+    bool isUnlocked() const;
+
+private:
+    bool unlocked_ = false;
+    void writeRelay(bool energize);
+};
+
+extern LockController lockController;

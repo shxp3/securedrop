@@ -1,31 +1,34 @@
 #pragma once
-// database.h : Data Access Layer เดียวที่คุยกับ Firebase ทั้งหมด
-// โมดูลอื่น "ห้าม" เรียก Firebase library ตรง ๆ ต้องผ่านชั้นนี้เท่านั้น (encapsulation)
+// Local tracking-number database stored in ESP32 NVS (no cloud).
+
 #include <Arduino.h>
 
-namespace Database {
-    struct ParcelRecord {
-        String trackingNumber;
-        String status;      // pending | delivered | rejected | expired
-        bool used = false;
-    };
+enum class VerifyResult {
+    Valid,
+    Unknown,
+    AlreadyUsed
+};
 
-    struct SystemConfig {
-        int uvDurationSec = 240;
-        float ultrasonicThresholdCm = 15.0f;
-        float motionAccelThresholdG = 1.8f;
-        int unlockTimeoutSec = 90;
-    };
-
+class LocalDatabase {
+public:
     void begin();
-    void loop();  // เรียก Firebase.ready() housekeeping ทุก loop()
+    VerifyResult verify(const String& tracking) const;
+    bool markUsed(const String& tracking);
+    void resetAllUsed();  // demo helper: clear used flags in NVS
 
-    bool lookupParcel(const String& trackingNumber, ParcelRecord& outRecord);
-    bool updateParcelStatus(const String& trackingNumber, const String& status, bool used);
-    bool attachPhotoUrl(const String& trackingNumber, const char* field, const String& url);
+private:
+    static constexpr size_t kMaxEntries = 16;
+    struct Entry {
+        const char* tracking;
+        bool used;
+    };
 
-    bool logTheftEvent(const String& triggerType, float accelDelta, float gyroDelta);
-    bool sendHeartbeat(const String& state);
+    Entry entries_[kMaxEntries];
+    size_t count_ = 0;
 
-    SystemConfig fetchConfig(); // ดึง config จาก /config node (cache ไว้ที่ boot)
-}
+    int findIndex(const String& tracking) const;
+    void loadUsedFlags();
+    void saveUsedFlag(size_t index, bool used);
+};
+
+extern LocalDatabase localDatabase;

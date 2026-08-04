@@ -1,53 +1,197 @@
-# 📦 SecureDrop
-### กล่องพัสดุอัจฉริยะป้องกันการโจรกรรม พร้อมระบบยืนยันตัวตนพัสดุและฆ่าเชื้อ UV-C
+# SecureDrop
 
-โครงงาน STEAM ระดับมัธยมปลาย (ม.6) ที่ออกแบบในระดับ "ผลิตภัณฑ์เชิงพาณิชย์จริง" โดยใช้ฮาร์ดแวร์ราคาประหยัดที่หาซื้อได้ทั่วไป (ESP32 Ecosystem) แต่ยึดหลักวิศวกรรมฝังตัว (Embedded Systems Engineering) และสถาปัตยกรรม IoT ที่ถูกต้องตามหลักวิชาการ
+Smart Parcel Security Box — STEAM competition MVP (v1)
+
+Indoor demo prototype: barcode unlock → wait → capture courier photo → Telegram notify → relock.
 
 ---
 
-## 1. ภาพรวมโครงการ (Executive Summary)
+## v1 Architecture
 
-**SecureDrop** คือกล่องรับพัสดุอัจฉริยะที่แก้ปัญหา 3 เรื่องหลักที่ผู้บริโภคเจอในชีวิตจริง:
+```
+┌─────────────────────────┐         HTTP GET /capture        ┌─────────────────────┐
+│  Main Controller        │ ───────────────────────────────► │  ESP32-CAM          │
+│  ESP32-WROOM-32         │ ◄──────────── JPEG ───────────── │  AI-Thinker         │
+│                         │                                  │  Fixed IP           │
+│  • UART barcode (GM65)  │                                  │  Front of box       │
+│  • Relay → 12V solenoid │                                  └─────────────────────┘
+│  • Local NVS database   │
+│  • Telegram Bot HTTPS   │ ───────► Telegram (text + photo)
+│  • FSM orchestrator     │
+└─────────────────────────┘
+```
 
-| ปัญหา | วิธีแก้ของ SecureDrop |
+**Not in v1 (architecture reserved only):** UV, ultrasonic, load cell, anti-theft sensors, Firebase, OLED, second camera, buzzer/siren.
+
+### Delivery flow
+
+1. Boot → init lock (LOCKED) → WiFi → Telegram client → wait for barcode  
+2. Read tracking number (UART 9600, RX-only)  
+3. Verify against **local NVS database** (no Firebase / Sheets)  
+4. **Valid:** mark used → unlock 5 s → HTTP capture → Telegram (tracking + time + photo) → lock → idle  
+5. **Invalid / already used:** do not unlock → Telegram alert → idle  
+
+### State machine
+
+`BOOT → CONNECT_WIFI → READY → WAIT_BARCODE → VERIFY → VALID → UNLOCK → CAPTURE → SEND_TELEGRAM → LOCK → READY`  
+
+Invalid path: `VERIFY → ERROR → READY`
+
+---
+
+## Hardware (v1 only)
+
+| Item | Role |
 |---|---|
-| พัสดุถูกขโมยหน้าบ้าน | ระบบล็อกอัตโนมัติ + เซนเซอร์ตรวจจับการงัด/ยก/เอียง + ไซเรน |
-| ใครก็เปิดกล่องได้ ไม่มีการยืนยันตัวตนพัสดุ | สแกนบาร์โค้ด + ตรวจสอบกับฐานข้อมูลก่อนปลดล็อก |
-| พัสดุอาจปนเปื้อนเชื้อโรค/ไวรัส | ฆ่าเชื้อด้วย UV-C อัตโนมัติหลังปิดประตู |
-| เจ้าของไม่รู้ว่าพัสดุมาส่งแล้วหรือมีคนพยายามขโมย | แจ้งเตือนผ่าน Telegram Bot พร้อมรูปภาพหลักฐาน |
+| ESP32 DevKit V1 (WROOM-32) | Main controller |
+| ESP32-CAM AI-Thinker | Courier photo via HTTP |
+| GM65-compatible UART scanner | Tracking number input |
+| 12V Fail-Secure solenoid | Lock |
+| 1-channel 5V relay (active-LOW) | Drives solenoid |
+| 12V adapter + LM2596 → 5V | Shared logic power |
+| Common GND | All modules |
 
-ระบบถูกออกแบบเป็น **Distributed Embedded System** ที่มี 3 โหนดไมโครคอนโทรลเลอร์ทำงานร่วมกัน (Main Controller + กล้อง 2 ตัว) สื่อสารกันผ่านโปรโตคอลที่กำหนดเอง และเชื่อมต่อ Cloud Backend (Firebase) เป็นแหล่งความจริงเดียว (Single Source of Truth)
+### Chosen pin map (Main)
 
-## 2. เอกสารประกอบโครงการ
-
-| ลำดับ | เอกสาร | เนื้อหา |
+| Function | GPIO | Notes |
 |---|---|---|
-| 1 | [`docs/01_Architecture_and_Flow.md`](docs/01_Architecture_and_Flow.md) | สถาปัตยกรรมระบบ, System Flow, Communication Protocol, State Machine, Flowchart |
-| 2 | [`docs/02_Hardware_and_Wiring.md`](docs/02_Hardware_and_Wiring.md) | Pin Assignment, Wiring Diagram, รายการฮาร์ดแวร์ + ข้อเสนอแนะปรับปรุง |
-| 3 | [`docs/03_Database_and_Software_Structure.md`](docs/03_Database_and_Software_Structure.md) | โครงสร้างฐานข้อมูล Firebase, โครงสร้างโฟลเดอร์โปรเจกต์, Libraries ที่ใช้ |
-| 4 | [`docs/04_Problems_Security_Future.md`](docs/04_Problems_Security_Future.md) | ปัญหาที่อาจเจอ+วิธีแก้, มาตรการความปลอดภัย, แนวทางพัฒนาต่อ |
-| 5 | [`docs/05_Cost_and_Roadmap.md`](docs/05_Cost_and_Roadmap.md) | ประมาณการต้นทุน BOM, แผนพัฒนาโครงการ (Roadmap) |
-| 6 | [`docs/06_Testing_and_Demo_Script.md`](docs/06_Testing_and_Demo_Script.md) | แผนทดสอบระบบ และสคริปต์สาธิตหน้ากรรมการ |
+| Barcode RX | **16** | UART2, scanner TX → ESP32 RX |
+| Barcode TX | not used | RX-only (`-1`) |
+| Relay IN | **25** | Active-LOW → energize = unlock |
 
-## 3. โครงสร้างโค้ด (Firmware)
+### Power
 
 ```
-firmware/
-├── main_controller/     ← ESP32 DevKit V1 (สมองหลักของระบบ)
-├── esp32cam_courier/    ← ESP32-CAM ตัวที่ 1 (ถ่ายรูปหน้าคนส่ง)
-└── esp32cam_internal/   ← ESP32-CAM ตัวที่ 2 (ถ่ายรูปพัสดุในกล่อง)
+12V Adapter ──► Solenoid (via Relay COM/NO)
+            └─► LM2596 5V ──► ESP32 Main VIN/5V
+                            └─► ESP32-CAM 5V
+Common GND tied together.
 ```
 
-ดูรายละเอียดการต่อวงจร ไลบรารีที่ต้องติดตั้ง และวิธี build ใน PlatformIO ได้ที่ [`docs/03_Database_and_Software_Structure.md`](docs/03_Database_and_Software_Structure.md)
+Put a flyback diode across the solenoid coil. Do not power the solenoid from the ESP32 5V pin.
 
-## 4. Quick Start
+### Network defaults
 
-1. ติดตั้ง [PlatformIO](https://platformio.org/) ใน VS Code
-2. เปิดโฟลเดอร์ `firmware/main_controller/` เป็น PlatformIO Project
-3. คัดลอก `include/secrets.h.example` เป็น `include/secrets.h` แล้วกรอก WiFi / Firebase / Telegram Token ของตัวเอง
-4. ต่อวงจรตาม `docs/02_Hardware_and_Wiring.md`
-5. Build & Upload firmware ทั้ง 3 บอร์ด
-6. เปิด Serial Monitor (115200 baud) เพื่อดู log การทำงาน
+| Device | Address |
+|---|---|
+| ESP32-CAM | `192.168.1.101` (static) |
+| Capture URL | `http://192.168.1.101/capture` |
+| Gateway / mask | `192.168.1.1` / `255.255.255.0` |
+
+Change these in `firmware/main_controller/include/config.h` and `firmware/esp32cam/include/credentials.h` if your LAN differs.
+
+### Seed tracking numbers
+
+- `TH1234567890`
+- `TH9988776655`
+- `JT5566778899`
+
+Used flags persist in NVS across reboots. To reset for demo, erase flash (`pio run -t erase`) or clear the `securedrop` NVS namespace.
 
 ---
-*จัดทำเพื่อการแข่งขันโครงงาน STEAM ระดับมัธยมศึกษาตอนปลาย — ออกแบบในแนวทางวิศวกรรมฝังตัวและสถาปัตยกรรม IoT ระดับผลิตภัณฑ์จริง*
+
+## Folder structure
+
+```
+SecureDrop/
+├── README.md
+├── docs/                          # original full-scope design notes
+└── firmware/
+    ├── main_controller/           # PlatformIO — Main ESP32
+    │   ├── platformio.ini
+    │   ├── include/
+    │   │   ├── config.h
+    │   │   ├── pins.h
+    │   │   └── credentials.h.example
+    │   └── src/
+    │       ├── main.cpp
+    │       ├── state_machine.*
+    │       ├── barcode.*
+    │       ├── camera.*
+    │       ├── telegram.*
+    │       ├── database.*
+    │       ├── lock.*
+    │       └── wifi_manager.*
+    └── esp32cam/                  # PlatformIO — one front camera
+        ├── platformio.ini
+        ├── include/
+        │   ├── camera_pins.h
+        │   └── credentials.h.example
+        └── src/
+            └── main.cpp
+```
+
+---
+
+## Build & flash
+
+### 1. Prerequisites
+
+- VS Code + [PlatformIO](https://platformio.org/)
+- USB cable for Main ESP32
+- FTDI / USB-TTL (3.3 V) for ESP32-CAM programming
+
+### 2. Credentials
+
+```bash
+cp firmware/main_controller/include/credentials.h.example firmware/main_controller/include/credentials.h
+cp firmware/esp32cam/include/credentials.h.example          firmware/esp32cam/include/credentials.h
+```
+
+Edit both files: WiFi SSID/password, Telegram bot token + chat id.  
+On the camera file, set static IP/gateway to match your router and `CAM_HOST` in Main `config.h`.
+
+### 3. Flash ESP32-CAM
+
+1. GPIO0 → GND (flash mode)  
+2. Open `firmware/esp32cam/` in PlatformIO  
+3. Build & Upload  
+4. Disconnect GPIO0 from GND, press RESET  
+5. Serial Monitor `115200` — confirm IP `192.168.1.101`  
+6. Browser test: `http://192.168.1.101/capture` should return a JPEG  
+
+### 4. Flash Main Controller
+
+1. Open `firmware/main_controller/`  
+2. Build & Upload  
+3. Serial Monitor `115200` — wait until FSM reaches `WAIT_BARCODE`  
+
+### 5. Wiring checklist
+
+- Scanner TX → ESP32 GPIO16, scanner VCC 5V, common GND  
+- Relay IN → GPIO25, relay VCC 5V, GND common  
+- Relay COM → 12V+, NO → solenoid+, solenoid− → 12V GND  
+- ESP32-CAM on same WiFi as Main  
+
+---
+
+## Module responsibilities
+
+| Module | Responsibility |
+|---|---|
+| `wifi_manager` | Connect / reconnect WiFi |
+| `barcode` | Non-blocking UART line reader |
+| `database` | Local tracking list + NVS used flags |
+| `lock` | Fail-secure relay control |
+| `camera` | HTTP GET JPEG from CAM |
+| `telegram` | `sendMessage` + multipart `sendPhoto` |
+| `state_machine` | Entire delivery sequence |
+
+---
+
+## Future expansion (not implemented)
+
+Keep these as separate modules later — do not fold into v1:
+
+| Feature | Suggested module |
+|---|---|
+| UV sterilization | `uv` + hardware door interlock |
+| Anti-theft | `sensor` (MPU6050/SW-420) + `alarm` |
+| Ultrasonic / load cell | parcel presence fusion |
+| OLED | `display` |
+| Firebase | `cloud_db` replacing local verify path |
+| Second camera | extra `camera` target + FSM step |
+
+---
+
+*SecureDrop v1 — reliable MVP first, expand later.*

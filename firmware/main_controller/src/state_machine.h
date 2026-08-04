@@ -1,48 +1,50 @@
 #pragma once
-// =====================================================================
-// state_machine.h : แกนกลางของระบบ (Finite State Machine)
-// อ้างอิง State Diagram ใน docs/01_Architecture_and_Flow.md หัวข้อ 1.5
-// =====================================================================
+// Finite state machine — SecureDrop v1 delivery flow.
+
 #include <Arduino.h>
+#include "camera.h"
+#include "database.h"
 
 enum class SystemState {
-    IDLE_LOCKED,              // สถานะปกติ กล่องล็อก เฝ้าระวังขโมย (ARMED)
-    SCANNING,                 // กำลังตรวจสอบ tracking number กับ Firebase
-    UNLOCKED_WAITING_COURIER, // ปลดล็อกรอคนส่งวางพัสดุ
-    WAIT_PARCEL_DETECT,       // ประตูปิดแล้ว รอ ultrasonic ยืนยันพัสดุ
-    LOCKING,                  // สั่งล็อกกลับ
-    UV_ACTIVE,                // กำลังฉาย UV-C (Safety-Critical State)
-    NOTIFYING,                // กำลังส่งข้อมูลไป Firebase/Telegram
-    ALARM_TRIGGERED,          // ตรวจพบความพยายามขโมย (priority สูงสุด)
-    TIMEOUT_ABORT             // ยกเลิกเนื่องจาก timeout
+    BOOT,
+    CONNECT_WIFI,
+    READY,
+    WAIT_BARCODE,
+    VERIFY,
+    VALID,
+    UNLOCK,
+    CAPTURE,
+    SEND_TELEGRAM,
+    LOCK,
+    ERROR
 };
 
 class StateMachine {
 public:
     void begin();
-    void update();                    // เรียกทุก loop() iteration
-    SystemState currentState() const { return _state; }
-    void forceAlarm();                // เรียกจาก sensor module เมื่อพบความผิดปกติ
-    void acknowledgeAlarm();          // เรียกจาก Telegram /ack command
+    void update();
+    SystemState state() const { return state_; }
+    const char* stateName() const;
 
 private:
-    SystemState _state = SystemState::IDLE_LOCKED;
-    unsigned long _stateEnteredAt = 0;
-    String _currentTracking;          // tracking number ที่กำลังประมวลผลอยู่
+    SystemState state_ = SystemState::BOOT;
+    String currentTracking_;
+    CapturedImage image_;
+    unsigned long stateEnteredMs_ = 0;
+    VerifyResult lastVerify_ = VerifyResult::Unknown;
 
-    void transitionTo(SystemState newState);
-    unsigned long elapsedInState() const { return millis() - _stateEnteredAt; }
-
-    // handlers ต่อ state
-    void handleIdleLocked();
-    void handleScanning();
-    void handleUnlockedWaitingCourier();
-    void handleWaitParcelDetect();
-    void handleLocking();
-    void handleUvActive();
-    void handleNotifying();
-    void handleAlarmTriggered();
-    void handleTimeoutAbort();
+    void enter(SystemState next);
+    void onBoot();
+    void onConnectWifi();
+    void onReady();
+    void onWaitBarcode();
+    void onVerify();
+    void onValid();
+    void onUnlock();
+    void onCapture();
+    void onSendTelegram();
+    void onLock();
+    void onError();
 };
 
 extern StateMachine stateMachine;

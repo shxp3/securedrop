@@ -1,11 +1,21 @@
 #pragma once
-// barcode.h : รับผิดชอบเฉพาะการอ่าน/ตรวจรูปแบบข้อมูลจาก GM65/GM66 (UART TTL mode)
+// UART barcode reader (GM65-compatible). Continuous auto-scan, RX-only.
+
 #include <Arduino.h>
 
-namespace Barcode {
+class BarcodeReader {
+public:
     void begin();
-    void poll();                 // เรียกทุก loop() เพื่ออ่าน UART buffer แบบ non-blocking
-    bool hasNewScan();           // มีบาร์โค้ดใหม่รออ่านหรือไม่
-    String readTracking();       // ดึงค่าล่าสุด (ล้าง flag hasNewScan)
-    bool isValidFormat(const String& code); // ตรวจรูปแบบเบื้องต้น (ความยาว/ตัวอักษรที่อนุญาต)
-}
+    void poll();                 // call every loop; non-blocking
+    bool hasCode() const;
+    String takeCode();           // returns code and clears pending flag
+
+private:
+    String buffer_;
+    String pending_;
+    bool hasPending_ = false;
+
+    void handleLine(const String& line);
+};
+
+extern BarcodeReader barcodeReader;
